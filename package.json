@@ -11,6 +11,7 @@
     "postinstall": "NUXT_DEVTOOLS=false nuxt prepare",
     "db:setup": "prisma migrate dev --name init && npx tsx prisma/seed.ts",
     "db:migrate": "prisma migrate dev",
+    "db:push:mysql": "prisma db push --schema=prisma/schema.mysql.prisma",
     "db:seed": "npx tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset",
     "db:studio": "prisma studio",

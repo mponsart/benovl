@@ -383,7 +383,7 @@ Dans **cPanel → Setup Node.js App** :
 2. Choisissez Node.js **20.x** (ou version supérieure disponible).
 3. Paramétrez :
    - **Application root** : `/home/<cpanel_user>/benovl`
-   - **Application startup file** : `.output/server/index.mjs`
+   - **Application startup file** : `passenger_startup.js`
 4. Ajoutez les variables d'environnement :
 
 ```env
@@ -403,8 +403,10 @@ Depuis le terminal cPanel (ou via SSH), placez-vous dans le dossier du projet :
 ```bash
 cd /home/<cpanel_user>/benovl
 npm install --include=dev
-npm run db:migrate:mysql
+npm run db:push:mysql
+npm run db:seed
 npm run build:mysql
+ls -l .output/server/index.mjs
 ```
 
 Pourquoi `--include=dev` ?
@@ -436,7 +438,8 @@ Si `npm install` échoue encore sur `nuxt prepare`, utilisez cette séquence de 
 cd /home/<cpanel_user>/benovl
 npm install --include=dev --ignore-scripts
 npx prisma generate
-npm run db:migrate:mysql
+npm run db:push:mysql
+npm run db:seed
 npm run build:mysql
 ```
 
