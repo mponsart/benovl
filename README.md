@@ -264,3 +264,27 @@ pm2 start .output/server/index.mjs --name benovl
 > En production, assurez-vous que `NODE_ENV=production` est défini et que vos secrets JWT  
 > sont de vraies valeurs aléatoires longues (≥ 64 caractères).
 
+---
+
+## Déploiement sur Vercel
+
+> ⚠️ **SQLite est incompatible avec Vercel** (système de fichiers éphémère en lecture seule).  
+> Utilisez impérativement **MySQL** (ou une base compatible) pour un déploiement Vercel.
+
+1. Configurez les variables d'environnement dans le dashboard Vercel :
+
+   | Variable | Valeur |
+   |----------|--------|
+   | `DATABASE_PROVIDER` | `mysql` |
+   | `DATABASE_URL` | `mysql://user:password@host:3306/benovl` |
+   | `JWT_SECRET` | *(chaîne aléatoire longue)* |
+   | `JWT_REFRESH_SECRET` | *(chaîne aléatoire longue)* |
+
+2. Appliquez les migrations sur votre base de données avant le premier déploiement :
+
+   ```bash
+   DATABASE_PROVIDER=mysql DATABASE_URL="mysql://..." npx prisma migrate deploy
+   ```
+
+3. Déployez — le script `build` génère automatiquement le client Prisma (`prisma generate`) puis compile l'application Nuxt.
+
