@@ -1,50 +1,18 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
-// DATABASE_PROVIDER can be "sqlite" or "mysql"
+// Default datasource: SQLite for local dev and Turso/Vercel (LibSQL).
+// For MySQL (O2switch), use: prisma generate --schema=prisma/schema.mysql.prisma
 datasource db {
-  provider = env("DATABASE_PROVIDER")
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
-enum UserRole {
-  admin
-  responsable
-  benevole
-}
-
-enum UserStatus {
-  actif
-  suspendu
-}
-
-enum RegistrationStatus {
-  inscrit
-  confirme
-  absent
-}
-
-enum AnnouncementType {
-  global
-  pole
-}
-
-enum DocumentType {
-  attestation
-  convention
-  autre
-}
-
-enum AuditAction {
-  create
-  update
-  delete
-  login
-  logout
-  invite
-  password_reset
-}
+// Note: SQLite/LibSQL does not support native enum or JSON types.
+// Enum-like fields are stored as String and validated at the application level.
+// See types/index.ts for the union types used throughout the app.
 
 model Pole {
   id            Int            @id @default(autoincrement())
@@ -58,24 +26,26 @@ model Pole {
 }
 
 model User {
-  id            Int          @id @default(autoincrement())
-  email         String       @unique
+  id            Int      @id @default(autoincrement())
+  email         String   @unique
   password      String
   nom           String
   prenom        String
   telephone     String?
-  role          UserRole     @default(benevole)
-  status        UserStatus   @default(actif)
+  /// admin | responsable | benevole
+  role          String   @default("benevole")
+  /// actif | suspendu
+  status        String   @default("actif")
   notesInternes String?
   poleId        Int?
-  pole          Pole?        @relation(fields: [poleId], references: [id])
-  inviteToken   String?      @unique
+  pole          Pole?    @relation(fields: [poleId], references: [id])
+  inviteToken   String?  @unique
   inviteExpiry  DateTime?
-  resetToken    String?      @unique
+  resetToken    String?  @unique
   resetExpiry   DateTime?
   lastLoginAt   DateTime?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   registrations PlanningRegistration[]
   documents     Document[]
@@ -94,69 +64,75 @@ model RefreshToken {
 }
 
 model PlanningSlot {
-  id                      Int                    @id @default(autoincrement())
+  id                      Int      @id @default(autoincrement())
   title                   String
   description             String?
   startAt                 DateTime
   endAt                   DateTime
   location                String?
-  maxCapacity             Int                    @default(10)
+  maxCapacity             Int      @default(10)
   poleId                  Int?
-  pole                    Pole?                  @relation(fields: [poleId], references: [id])
-  openForSelfRegistration Boolean                @default(false)
-  createdAt               DateTime               @default(now())
-  updatedAt               DateTime               @updatedAt
+  pole                    Pole?    @relation(fields: [poleId], references: [id])
+  openForSelfRegistration Boolean  @default(false)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
   registrations           PlanningRegistration[]
 }
 
 model PlanningRegistration {
-  id        Int                @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   userId    Int
   slotId    Int
-  status    RegistrationStatus @default(inscrit)
-  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  slot      PlanningSlot       @relation(fields: [slotId], references: [id], onDelete: Cascade)
-  createdAt DateTime           @default(now())
-  updatedAt DateTime           @updatedAt
+  /// inscrit | confirme | absent
+  status    String   @default("inscrit")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slot      PlanningSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([userId, slotId])
 }
 
 model Document {
-  id        Int          @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   name      String
   filename  String
-  type      DocumentType @default(autre)
+  /// attestation | convention | autre
+  type      String   @default("autre")
   userId    Int?
-  user      User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   size      Int?
   mimeType  String?
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Announcement {
-  id        Int              @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   title     String
   content   String
-  type      AnnouncementType @default(global)
+  /// global | pole
+  type      String   @default("global")
   poleId    Int?
-  pole      Pole?            @relation(fields: [poleId], references: [id])
-  isPinned  Boolean          @default(false)
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  pole      Pole?    @relation(fields: [poleId], references: [id])
+  isPinned  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model AuditLog {
-  id        Int         @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   actorId   Int?
-  actor     User?       @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actor     User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
   targetId  Int?
-  target    User?       @relation("AuditUser", fields: [targetId], references: [id], onDelete: SetNull)
-  action    AuditAction
+  target    User?    @relation("AuditUser", fields: [targetId], references: [id], onDelete: SetNull)
+  /// create | update | delete | login | logout | invite | password_reset
+  action    String
   entity    String
   entityId  Int?
-  details   Json?
+  /// Stored as JSON string
+  details   String?
   ipAddress String?
-  createdAt DateTime    @default(now())
+  createdAt DateTime @default(now())
 }
+

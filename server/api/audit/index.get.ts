@@ -1,5 +1,6 @@
 import { requireAdmin } from '../../utils/auth'
 import prisma from '../../db/client'
+import { parseAuditDetails } from '../../utils/json'
 
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
@@ -21,5 +22,11 @@ export default defineEventHandler(async (event) => {
     prisma.auditLog.count(),
   ])
 
-  return { logs, total, page, perPage, totalPages: Math.ceil(total / perPage) }
+  return {
+    logs: logs.map(l => ({ ...l, details: parseAuditDetails(l.details) })),
+    total,
+    page,
+    perPage,
+    totalPages: Math.ceil(total / perPage),
+  }
 })

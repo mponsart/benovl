@@ -1,0 +1,166 @@
+// Schéma Prisma pour O2switch / MySQL
+// Usage : prisma generate --schema=prisma/schema.mysql.prisma
+//         prisma migrate dev --schema=prisma/schema.mysql.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  admin
+  responsable
+  benevole
+}
+
+enum UserStatus {
+  actif
+  suspendu
+}
+
+enum RegistrationStatus {
+  inscrit
+  confirme
+  absent
+}
+
+enum AnnouncementType {
+  global
+  pole
+}
+
+enum DocumentType {
+  attestation
+  convention
+  autre
+}
+
+enum AuditAction {
+  create
+  update
+  delete
+  login
+  logout
+  invite
+  password_reset
+}
+
+model Pole {
+  id            Int            @id @default(autoincrement())
+  name          String         @unique
+  description   String?        @db.Text
+  users         User[]
+  slots         PlanningSlot[]
+  announcements Announcement[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model User {
+  id            Int          @id @default(autoincrement())
+  email         String       @unique
+  password      String
+  nom           String
+  prenom        String
+  telephone     String?
+  role          UserRole     @default(benevole)
+  status        UserStatus   @default(actif)
+  notesInternes String?      @db.Text
+  poleId        Int?
+  pole          Pole?        @relation(fields: [poleId], references: [id])
+  inviteToken   String?      @unique
+  inviteExpiry  DateTime?
+  resetToken    String?      @unique
+  resetExpiry   DateTime?
+  lastLoginAt   DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  registrations PlanningRegistration[]
+  documents     Document[]
+  auditLogs     AuditLog[]   @relation("AuditUser")
+  auditActions  AuditLog[]   @relation("AuditActor")
+  refreshTokens RefreshToken[]
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique @db.VarChar(512)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model PlanningSlot {
+  id                      Int                    @id @default(autoincrement())
+  title                   String
+  description             String?                @db.Text
+  startAt                 DateTime
+  endAt                   DateTime
+  location                String?
+  maxCapacity             Int                    @default(10)
+  poleId                  Int?
+  pole                    Pole?                  @relation(fields: [poleId], references: [id])
+  openForSelfRegistration Boolean                @default(false)
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @updatedAt
+  registrations           PlanningRegistration[]
+}
+
+model PlanningRegistration {
+  id        Int                @id @default(autoincrement())
+  userId    Int
+  slotId    Int
+  status    RegistrationStatus @default(inscrit)
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slot      PlanningSlot       @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@unique([userId, slotId])
+}
+
+model Document {
+  id        Int          @id @default(autoincrement())
+  name      String
+  filename  String
+  type      DocumentType @default(autre)
+  userId    Int?
+  user      User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  size      Int?
+  mimeType  String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model Announcement {
+  id        Int              @id @default(autoincrement())
+  title     String
+  content   String           @db.Text
+  type      AnnouncementType @default(global)
+  poleId    Int?
+  pole      Pole?            @relation(fields: [poleId], references: [id])
+  isPinned  Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+}
+
+model AuditLog {
+  id        Int         @id @default(autoincrement())
+  actorId   Int?
+  actor     User?       @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  targetId  Int?
+  target    User?       @relation("AuditUser", fields: [targetId], references: [id], onDelete: SetNull)
+  action    AuditAction
+  entity    String
+  entityId  Int?
+  /// Stored as JSON string for cross-database compatibility
+  details   String?     @db.Text
+  ipAddress String?
+  createdAt DateTime    @default(now())
+}

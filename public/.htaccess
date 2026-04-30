@@ -1,0 +1,23 @@
+# Configuration Phusion Passenger pour O2switch
+# Placez ce fichier dans le dossier public_html (ou le répertoire racine de votre domaine)
+# après avoir configuré l'application Node.js dans cPanel.
+#
+# Remplacez <user> par votre nom d'utilisateur O2switch dans les directives ci-dessous.
+#
+# Dans cPanel → Node.js App :
+#   - Application root : /home/<user>/benovl
+#   - Application startup file : .output/server/index.mjs
+#   - Node.js version : 20.x (ou la plus récente disponible)
+#   - Variables d'environnement : voir .env.example
+
+PassengerNodejs /usr/bin/node
+PassengerAppRoot /home/<user>/benovl
+PassengerStartupFile .output/server/index.mjs
+PassengerAppType node
+PassengerRestartDir /home/<user>/benovl/tmp
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^(.*)$ /$1 [QSA,L]
+</IfModule>
