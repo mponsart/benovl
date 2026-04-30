@@ -30,10 +30,14 @@ export default defineEventHandler(async (event) => {
 
   const resetUrl = `${getHeader(event, 'origin') || 'http://localhost:3000'}/reset-password?token=${token}`
 
-  // In production this URL would be sent by email.
-  // Returned here for development / admin use until an email service is configured.
-  return {
+  // In production this URL would be delivered by email.
+  // During development (no email service configured) the URL is returned in the
+  // response so that the flow can be tested without a mail server.
+  const response: { message: string; resetUrl?: string } = {
     message: 'Si cet email est enregistré, un lien de réinitialisation a été envoyé.',
-    resetUrl,
   }
+  if (process.env.NODE_ENV !== 'production') {
+    response.resetUrl = resetUrl
+  }
+  return response
 })
