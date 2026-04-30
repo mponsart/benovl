@@ -7,8 +7,6 @@ export default defineNuxtConfig({
     jwtSecret: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production',
     jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || 'your-super-secret-refresh-key-change-in-production',
     databaseUrl: process.env.TURSO_DATABASE_URL || process.env.DATABASE_URL || 'mysql://root:password@localhost:3306/benovl',
-    tursoDatabaseUrl: process.env.TURSO_DATABASE_URL || '',
-    tursoAuthToken: process.env.TURSO_AUTH_TOKEN || '',
     public: {
       appName: 'BénoVL Intranet'
     }
