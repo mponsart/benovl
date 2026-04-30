@@ -2,6 +2,8 @@
 # Placez ce fichier dans le dossier public_html (ou le répertoire racine de votre domaine)
 # après avoir configuré l'application Node.js dans cPanel.
 #
+# Remplacez <user> par votre nom d'utilisateur O2switch dans les directives ci-dessous.
+#
 # Dans cPanel → Node.js App :
 #   - Application root : /home/<user>/benovl
 #   - Application startup file : .output/server/index.mjs

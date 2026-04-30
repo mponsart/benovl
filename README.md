@@ -289,7 +289,7 @@ turso auth login
 turso db create benovl
 
 # Récupérer l'URL et le token
-turso db show benovl --url
+turso db show benovl --url   # → libsql://<db-name>-<org>.turso.io
 turso db tokens create benovl
 ```
 
