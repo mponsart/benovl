@@ -430,6 +430,18 @@ Dans cPanel Node.js App :
 - Warnings `EBADENGINE` ou `deprecated` : généralement non bloquants pour le démarrage.
 - Erreur Nuxt/DevTools pendant `nuxt prepare` : utiliser la version du projet où DevTools est conditionné à l'environnement de développement (déjà géré dans ce dépôt).
 
+Si `npm install` échoue encore sur `nuxt prepare`, utilisez cette séquence de secours :
+
+```bash
+cd /home/<cpanel_user>/benovl
+npm install --include=dev --ignore-scripts
+npx prisma generate
+npm run db:migrate:mysql
+npm run build:mysql
+```
+
+Puis redémarrez l'application dans cPanel (bouton **Restart**).
+
 ### Option PM2 (si vous gérez le process en SSH)
 
 Le fichier `ecosystem.config.cjs` est prêt pour un lancement PM2 :
