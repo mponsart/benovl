@@ -2,8 +2,9 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// DATABASE_PROVIDER can be "sqlite" or "mysql"
 datasource db {
-  provider = "mysql"
+  provider = env("DATABASE_PROVIDER")
   url      = env("DATABASE_URL")
 }
 
@@ -65,7 +66,7 @@ model User {
   telephone     String?
   role          UserRole     @default(benevole)
   status        UserStatus   @default(actif)
-  notesInternes String?      @db.Text
+  notesInternes String?
   poleId        Int?
   pole          Pole?        @relation(fields: [poleId], references: [id])
   inviteToken   String?      @unique
@@ -95,7 +96,7 @@ model RefreshToken {
 model PlanningSlot {
   id                      Int                    @id @default(autoincrement())
   title                   String
-  description             String?                @db.Text
+  description             String?
   startAt                 DateTime
   endAt                   DateTime
   location                String?
@@ -137,7 +138,7 @@ model Document {
 model Announcement {
   id        Int              @id @default(autoincrement())
   title     String
-  content   String           @db.Text
+  content   String
   type      AnnouncementType @default(global)
   poleId    Int?
   pole      Pole?            @relation(fields: [poleId], references: [id])
