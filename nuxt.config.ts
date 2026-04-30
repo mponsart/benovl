@@ -1,6 +1,8 @@
+const enableNuxtDevtools = process.env.NODE_ENV === 'development' && process.env.NUXT_DEVTOOLS !== 'false'
+
 export default defineNuxtConfig({
   compatibilityDate: '2024-11-01',
-  devtools: { enabled: true },
+  devtools: { enabled: enableNuxtDevtools },
   modules: ['@nuxtjs/tailwindcss', '@vueuse/nuxt'],
   css: ['~/assets/css/main.css'],
   runtimeConfig: {

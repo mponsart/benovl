@@ -355,60 +355,88 @@ Puisqu'il est impossible d'exécuter `npx tsx prisma/seed.ts` directement dans u
 
 ---
 
-## Déploiement sur O2switch
+## Déploiement sur O2switch (cPanel)
 
-O2switch est un hébergeur mutualisé français supportant Node.js via **Phusion Passenger** et **PM2**.
+Guide recommandé pour installer BénoVL sur o2switch via cPanel + Node.js App.
 
-### Base de données MySQL
+### 1. Préparer la base MySQL dans cPanel
 
-1. Créez une base MySQL dans cPanel (MySQL Databases) :
+Dans **cPanel → MySQL Databases** :
 
-```sql
-CREATE DATABASE <user>_benovl CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+1. Créez une base (exemple : `<cpanel_user>_benovl`).
+2. Créez un utilisateur MySQL dédié.
+3. Associez cet utilisateur à la base avec **ALL PRIVILEGES**.
+
+### 2. Déployer le code sur l'hébergement
+
+Utilisez Git (recommandé) ou FTP/SFTP pour placer le projet dans un dossier, par exemple :
+
+```bash
+/home/<cpanel_user>/benovl
 ```
 
-2. Préparez votre `.env` :
+### 3. Configurer l'application Node.js dans cPanel
+
+Dans **cPanel → Setup Node.js App** :
+
+1. Créez une application en mode **Production**.
+2. Choisissez Node.js **20.x** (ou version supérieure disponible).
+3. Paramétrez :
+   - **Application root** : `/home/<cpanel_user>/benovl`
+   - **Application startup file** : `.output/server/index.mjs`
+4. Ajoutez les variables d'environnement :
 
 ```env
-DATABASE_URL="mysql://<user>:<password>@localhost:3306/<user>_benovl"
-JWT_SECRET="<votre-secret>"
-JWT_REFRESH_SECRET="<votre-secret-refresh>"
+NODE_ENV=production
+DATABASE_URL=mysql://<db_user>:<db_password>@localhost:3306/<cpanel_user>_benovl
+JWT_SECRET=<secret-long-et-aleatoire>
+JWT_REFRESH_SECRET=<secret-long-et-aleatoire>
 ```
 
-3. Appliquez les migrations MySQL :
+> Génération rapide d'un secret fort :
+> `node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`
+
+### 4. Installer les dépendances et construire
+
+Depuis le terminal cPanel (ou via SSH), placez-vous dans le dossier du projet :
 
 ```bash
+cd /home/<cpanel_user>/benovl
+npm install --include=dev
 npm run db:migrate:mysql
-```
-
-### Application Node.js
-
-1. **Build** sur votre machine (ou via SSH sur O2switch) :
-
-```bash
 npm run build:mysql
 ```
 
-2. **Déposez** le projet sur O2switch (via FTP/SFTP ou `git clone`).
+Pourquoi `--include=dev` ?
+- Le build utilise Prisma CLI, déclaré en dépendance de développement.
 
-3. **Configurez l'application Node.js** dans cPanel → Node.js App :
-   - *Application root* : chemin absolu vers le dossier du projet (ex. `/home/<user>/benovl`)
-   - *Application startup file* : `.output/server/index.mjs`
-   - *Node.js version* : 20.x (ou la plus récente disponible)
-   - *Environment variables* : ajoutez `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`
+### 5. Démarrer l'application
 
-4. Cliquez sur **Run NPM Install** puis **Start Application**.
+Dans cPanel Node.js App :
 
-### Démarrage alternatif avec PM2
+1. Cliquez **Restart** (ou **Start Application** si premier démarrage).
+2. Ouvrez l'URL de l'application configurée dans cPanel.
 
-Si vous avez accès à PM2 via SSH :
+### 6. Vérifications après installation
+
+1. Testez la page de connexion.
+2. Vérifiez que les routes API répondent (exemple : `/api/auth/me` renvoie 401 sans session, ce qui est normal).
+3. Vérifiez les logs dans cPanel Node.js App en cas d'erreur.
+
+### Dépannage fréquent sur o2switch
+
+- `npm ERR! signal SIGINT` : installation interrompue, relancer `npm install`.
+- `pnpm: commande introuvable` : utiliser `npm` (pnpm non installé par défaut).
+- Warnings `EBADENGINE` ou `deprecated` : généralement non bloquants pour le démarrage.
+- Erreur Nuxt/DevTools pendant `nuxt prepare` : utiliser la version du projet où DevTools est conditionné à l'environnement de développement (déjà géré dans ce dépôt).
+
+### Option PM2 (si vous gérez le process en SSH)
+
+Le fichier `ecosystem.config.cjs` est prêt pour un lancement PM2 :
 
 ```bash
-# Renseignez les variables d'env dans ecosystem.config.cjs puis :
 pm2 start ecosystem.config.cjs
 pm2 save
-pm2 startup   # pour démarrer au boot
+pm2 startup
 ```
-
-> Le fichier `ecosystem.config.cjs` à la racine du projet contient la configuration PM2 pré-remplie.
 
