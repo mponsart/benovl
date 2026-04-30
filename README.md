@@ -227,6 +227,7 @@ benovl/
 | POST | `/api/auth/logout` | auth | Déconnexion |
 | POST | `/api/auth/refresh` | — | Renouveler le token |
 | GET | `/api/auth/me` | auth | Profil courant |
+| POST | `/api/seed` | SEED_SECRET | Initialiser la BDD (déploiement) |
 | GET | `/api/users` | admin/responsable | Liste des bénévoles |
 | POST | `/api/users` | admin | Créer un bénévole |
 | GET | `/api/users/[id]` | auth | Détail bénévole |
@@ -328,6 +329,29 @@ git push origin main
 
 Le script `build` dans `vercel.json` exécute `prisma generate && nuxt build`.  
 Le client Prisma détecte automatiquement `TURSO_DATABASE_URL` et utilise l'adaptateur LibSQL.
+
+### 5. Initialiser les données (seed en production)
+
+Puisqu'il est impossible d'exécuter `npx tsx prisma/seed.ts` directement dans un environnement serverless, utilisez l'endpoint API dédié :
+
+1. Dans Vercel → Settings → Environment Variables, ajoutez :
+
+   | Variable | Valeur |
+   |----------|--------|
+   | `SEED_SECRET` | *(chaîne aléatoire longue et secrète)* |
+
+2. Redéployez ou attendez que la variable soit prise en compte, puis appelez :
+
+   ```bash
+   curl -X POST https://<votre-app>.vercel.app/api/seed \
+     -H "Authorization: Bearer <valeur-de-SEED_SECRET>"
+   ```
+
+   En cas de succès, la réponse liste les comptes créés.
+
+3. **Important** : supprimez la variable `SEED_SECRET` dans Vercel après le premier seed pour désactiver l'endpoint.
+
+> **Comptes créés par le seed** : voir le tableau « Comptes de test » ci-dessus.
 
 ---
 
