@@ -23,5 +23,12 @@ export default defineNuxtConfig({
     // Use node-server preset for O2switch (Phusion Passenger / PM2).
     // For Vercel, remove this line – Vercel auto-detects the preset.
     // preset: 'node-server',
+    minify: false,
+  },
+  vite: {
+    build: {
+      minify: false,
+      cssMinify: false,
+    }
   }
 })

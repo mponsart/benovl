@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "prisma generate && nuxt build",
-    "build:mysql": "prisma generate --schema=prisma/schema.mysql.prisma && nuxt build",
+    "build:mysql": "prisma generate --schema=prisma/schema.mysql.prisma && GOMAXPROCS=1 nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
