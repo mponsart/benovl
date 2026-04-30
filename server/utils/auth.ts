@@ -57,7 +57,7 @@ export async function logAudit(params: {
         action: params.action as any,
         entity: params.entity,
         entityId: params.entityId ?? null,
-        details: params.details ?? null,
+        details: params.details != null ? JSON.stringify(params.details) : null,
         ipAddress: params.ipAddress ?? null,
       },
     })

@@ -3,7 +3,7 @@
 Intranet associatif pour la gestion des bénévoles — planning, annonces, documents et suivi RH.
 
 Construit avec **Nuxt 3**, **Prisma ORM**, **Tailwind CSS** et **JWT**.  
-Compatible **SQLite** (zéro config) et **MySQL** (production).
+Compatible **SQLite / Turso** (LibSQL) et **MySQL** (production).
 
 ---
 
@@ -21,6 +21,8 @@ Compatible **SQLite** (zéro config) et **MySQL** (production).
 - [Structure du projet](#structure-du-projet)
 - [Routes API](#routes-api)
 - [Production](#production)
+- [Déploiement sur Vercel (Turso)](#déploiement-sur-vercel-turso)
+- [Déploiement sur O2switch](#déploiement-sur-o2switch)
 
 ---
 
@@ -44,7 +46,7 @@ Compatible **SQLite** (zéro config) et **MySQL** (production).
 - **Frontend** : Nuxt 3, Vue 3, Tailwind CSS, VueUse
 - **Backend** : Nuxt server routes (h3), Prisma ORM 5
 - **Auth** : JWT (jose), bcryptjs
-- **Base de données** : SQLite ou MySQL (via Prisma)
+- **Base de données** : SQLite local / Turso (LibSQL) ou MySQL (via Prisma)
 - **Validation** : Zod
 
 ---
@@ -84,7 +86,6 @@ npm run db:setup
 Aucun serveur à installer. Modifiez votre `.env` :
 
 ```env
-DATABASE_PROVIDER="sqlite"
 DATABASE_URL="file:./dev.db"
 ```
 
@@ -108,20 +109,15 @@ CREATE DATABASE benovl CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 2. Renseignez votre `.env` :
 
 ```env
-DATABASE_PROVIDER="mysql"
 DATABASE_URL="mysql://user:password@localhost:3306/benovl"
 ```
 
-3. Initialisez :
+3. Initialisez avec le schéma MySQL :
 
 ```bash
-npm run db:setup
+npm run db:setup:mysql
 npm run dev
 ```
-
-> **Note MySQL** : Les champs de type `String` sont mappés en `VARCHAR(191)` par défaut.  
-> Pour les champs à contenu long (`content`, `description`, `notesInternes`), ajoutez `@db.Text`  
-> dans `prisma/schema.prisma` puis relancez `prisma migrate dev`.
 
 ---
 
@@ -129,8 +125,9 @@ npm run dev
 
 | Variable | Description | Exemple |
 |----------|-------------|---------|
-| `DATABASE_PROVIDER` | Provider Prisma (`sqlite` ou `mysql`) | `sqlite` |
-| `DATABASE_URL` | URL de connexion à la base | `file:./dev.db` |
+| `DATABASE_URL` | URL de connexion SQLite ou chemin fichier | `file:./dev.db` |
+| `TURSO_DATABASE_URL` | URL Turso (LibSQL) — Vercel uniquement | `libsql://<db>.turso.io` |
+| `TURSO_AUTH_TOKEN` | Token d'authentification Turso | *(depuis le dashboard Turso)* |
 | `JWT_SECRET` | Clé secrète access token | *(chaîne aléatoire longue)* |
 | `JWT_REFRESH_SECRET` | Clé secrète refresh token | *(chaîne aléatoire longue)* |
 
@@ -143,10 +140,12 @@ npm run dev
 
 | Commande | Description |
 |----------|-------------|
-| `npm run db:setup` | **First run** : migrate + seed automatique |
-| `npm run db:migrate` | Appliquer les migrations (le seed tourne automatiquement) |
-| `npm run db:seed` | Injecter les données de démonstration uniquement |
-| `npm run db:reset` | Remettre à zéro la BDD et relancer le seed |
+| `npm run db:setup` | **First run SQLite** : migrate + seed |
+| `npm run db:setup:mysql` | **First run MySQL** : migrate + seed |
+| `npm run db:migrate` | Appliquer les migrations SQLite |
+| `npm run db:migrate:mysql` | Appliquer les migrations MySQL (deploy) |
+| `npm run db:seed` | Injecter les données de démonstration |
+| `npm run db:reset` | Remettre à zéro la BDD SQLite et relancer le seed |
 | `npm run db:studio` | Ouvrir Prisma Studio (interface visuelle) |
 
 Le seed s'exécute **automatiquement** après chaque `prisma migrate dev` et `prisma migrate reset`  
@@ -194,8 +193,9 @@ benovl/
 │   ├── documents/
 │   └── audit/
 ├── prisma/
-│   ├── schema.prisma    # Schéma de base de données
-│   └── seed.ts          # Données de démonstration
+│   ├── schema.prisma        # Schéma SQLite / Turso (défaut)
+│   ├── schema.mysql.prisma  # Schéma MySQL (O2switch / prod MySQL)
+│   └── seed.ts              # Données de démonstration
 ├── server/
 │   ├── api/             # Routes API (Nuxt server routes)
 │   │   ├── auth/
@@ -206,12 +206,14 @@ benovl/
 │   │   ├── documents/
 │   │   ├── dashboard/
 │   │   └── audit/
-│   ├── db/client.ts     # Singleton Prisma Client
+│   ├── db/client.ts     # Singleton Prisma Client (auto-Turso si TURSO_DATABASE_URL)
 │   ├── middleware/      # Middleware serveur
-│   └── utils/           # Helpers auth, JWT
+│   └── utils/           # Helpers auth, JWT, JSON
 ├── types/               # Types TypeScript partagés
+├── ecosystem.config.cjs # Config PM2 pour O2switch
 ├── .env.example         # Template variables d'environnement
 ├── nuxt.config.ts
+├── vercel.json          # Config Vercel
 └── package.json
 ```
 
@@ -248,8 +250,11 @@ benovl/
 ## Production
 
 ```bash
-# Construire l'application
+# Construire l'application (SQLite / Turso)
 npm run build
+
+# Construire l'application (MySQL / O2switch)
+npm run build:mysql
 
 # Démarrer en production
 node .output/server/index.mjs
@@ -258,7 +263,7 @@ node .output/server/index.mjs
 Ou avec PM2 :
 
 ```bash
-pm2 start .output/server/index.mjs --name benovl
+pm2 start ecosystem.config.cjs
 ```
 
 > En production, assurez-vous que `NODE_ENV=production` est défini et que vos secrets JWT  
@@ -266,25 +271,120 @@ pm2 start .output/server/index.mjs --name benovl
 
 ---
 
-## Déploiement sur Vercel
+## Déploiement sur Vercel (Turso)
 
-> ⚠️ **SQLite est incompatible avec Vercel** (système de fichiers éphémère en lecture seule).  
-> Utilisez impérativement **MySQL** (ou une base compatible) pour un déploiement Vercel.
+BénoVL utilise **[Turso](https://turso.tech)** (LibSQL cloud) pour le déploiement Vercel.  
+Turso est compatible avec l'offre gratuite de Vercel et de Turso.
 
-1. Configurez les variables d'environnement dans le dashboard Vercel :
+### 1. Créer une base Turso
 
-   | Variable | Valeur |
-   |----------|--------|
-   | `DATABASE_PROVIDER` | `mysql` |
-   | `DATABASE_URL` | `mysql://user:password@host:3306/benovl` |
-   | `JWT_SECRET` | *(chaîne aléatoire longue)* |
-   | `JWT_REFRESH_SECRET` | *(chaîne aléatoire longue)* |
+```bash
+# Installer la CLI Turso
+curl -sSfL https://get.tur.so/install.sh | bash
 
-2. Appliquez les migrations sur votre base de données avant le premier déploiement :
+# Connexion
+turso auth login
 
-   ```bash
-   DATABASE_PROVIDER=mysql DATABASE_URL="mysql://..." npx prisma migrate deploy
-   ```
+# Créer la base
+turso db create benovl
 
-3. Déployez — le script `build` génère automatiquement le client Prisma (`prisma generate`) puis compile l'application Nuxt.
+# Récupérer l'URL et le token
+turso db show benovl --url
+turso db tokens create benovl
+```
+
+### 2. Appliquer les migrations
+
+En local, pointez temporairement sur Turso pour initialiser le schéma :
+
+```bash
+# Générer les migrations localement (SQLite)
+DATABASE_URL="file:./dev.db" npm run db:migrate
+
+# Pousser le schéma directement vers Turso
+TURSO_DATABASE_URL="libsql://<db>.turso.io" \
+TURSO_AUTH_TOKEN="<token>" \
+npx prisma db push
+```
+
+### 3. Variables d'environnement Vercel
+
+Dans le dashboard Vercel → Settings → Environment Variables :
+
+| Variable | Valeur |
+|----------|--------|
+| `DATABASE_URL` | `file:./dev.db` *(utilisé uniquement pour prisma generate en build)* |
+| `TURSO_DATABASE_URL` | `libsql://<db-name>-<org>.turso.io` |
+| `TURSO_AUTH_TOKEN` | *(token Turso)* |
+| `JWT_SECRET` | *(chaîne aléatoire ≥ 64 chars)* |
+| `JWT_REFRESH_SECRET` | *(chaîne aléatoire ≥ 64 chars)* |
+
+### 4. Déployer
+
+```bash
+# Pousser sur la branche principale — Vercel build automatiquement
+git push origin main
+```
+
+Le script `build` dans `vercel.json` exécute `prisma generate && nuxt build`.  
+Le client Prisma détecte automatiquement `TURSO_DATABASE_URL` et utilise l'adaptateur LibSQL.
+
+---
+
+## Déploiement sur O2switch
+
+O2switch est un hébergeur mutualisé français supportant Node.js via **Phusion Passenger** et **PM2**.
+
+### Base de données MySQL
+
+1. Créez une base MySQL dans cPanel (MySQL Databases) :
+
+```sql
+CREATE DATABASE <user>_benovl CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+2. Préparez votre `.env` :
+
+```env
+DATABASE_URL="mysql://<user>:<password>@localhost:3306/<user>_benovl"
+JWT_SECRET="<votre-secret>"
+JWT_REFRESH_SECRET="<votre-secret-refresh>"
+```
+
+3. Appliquez les migrations MySQL :
+
+```bash
+npm run db:migrate:mysql
+```
+
+### Application Node.js
+
+1. **Build** sur votre machine (ou via SSH sur O2switch) :
+
+```bash
+npm run build:mysql
+```
+
+2. **Déposez** le projet sur O2switch (via FTP/SFTP ou `git clone`).
+
+3. **Configurez l'application Node.js** dans cPanel → Node.js App :
+   - *Application root* : chemin absolu vers le dossier du projet (ex. `/home/<user>/benovl`)
+   - *Application startup file* : `.output/server/index.mjs`
+   - *Node.js version* : 20.x (ou la plus récente disponible)
+   - *Environment variables* : ajoutez `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`
+
+4. Cliquez sur **Run NPM Install** puis **Start Application**.
+
+### Démarrage alternatif avec PM2
+
+Si vous avez accès à PM2 via SSH :
+
+```bash
+# Renseignez les variables d'env dans ecosystem.config.cjs puis :
+pm2 start ecosystem.config.cjs
+pm2 save
+pm2 startup   # pour démarrer au boot
+```
+
+> Le fichier `ecosystem.config.cjs` à la racine du projet contient la configuration PM2 pré-remplie.
 

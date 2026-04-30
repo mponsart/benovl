@@ -177,7 +177,7 @@ async function main() {
       actorId: admin.id,
       action: 'create',
       entity: 'System',
-      details: { message: 'Database seeded successfully' },
+      details: JSON.stringify({ message: 'Database seeded successfully' }),
     },
   })
 

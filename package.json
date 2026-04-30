@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "prisma generate && nuxt build",
+    "build:mysql": "prisma generate --schema=prisma/schema.mysql.prisma && nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
@@ -12,22 +13,26 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "npx tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "db:setup:mysql": "prisma migrate dev --name init --schema=prisma/schema.mysql.prisma && npx tsx prisma/seed.ts",
+    "db:migrate:mysql": "prisma migrate deploy --schema=prisma/schema.mysql.prisma"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@libsql/client": "^0.8.0",
+    "@prisma/adapter-libsql": "^5.22.0",
     "@prisma/client": "^5.22.0",
+    "@vueuse/core": "^11.3.0",
+    "@vueuse/nuxt": "^11.3.0",
     "bcryptjs": "^2.4.3",
+    "h3": "^1.13.0",
     "jose": "^5.9.6",
     "nuxt": "^3.14.0",
     "vue": "^3.5.13",
     "vue-router": "^4.4.5",
-    "zod": "^3.23.8",
-    "@vueuse/nuxt": "^11.3.0",
-    "@vueuse/core": "^11.3.0",
-    "h3": "^1.13.0"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@nuxtjs/tailwindcss": "^6.12.2",

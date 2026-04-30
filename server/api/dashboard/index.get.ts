@@ -1,5 +1,6 @@
 import { requireAuth } from '../../utils/auth'
 import prisma from '../../db/client'
+import { parseAuditDetails } from '../../utils/json'
 
 export default defineEventHandler(async (event) => {
   await requireAuth(event)
@@ -25,5 +26,10 @@ export default defineEventHandler(async (event) => {
     }),
   ])
 
-  return { totalUsers, activeUsers, totalSlots, upcomingSlots, totalRegistrations, confirmedRegistrations, absentRegistrations, recentAuditLogs, announcements }
+  return {
+    totalUsers, activeUsers, totalSlots, upcomingSlots, totalRegistrations,
+    confirmedRegistrations, absentRegistrations,
+    recentAuditLogs: recentAuditLogs.map(l => ({ ...l, details: parseAuditDetails(l.details) })),
+    announcements,
+  }
 })
