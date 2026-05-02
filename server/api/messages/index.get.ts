@@ -22,13 +22,13 @@ export default defineEventHandler(async (event) => {
     orderBy: { updatedAt: 'desc' },
   })
 
-  const unreadCounts = await Promise.all(
-    threads.map(thread =>
-      prisma.message.count({
-        where: { threadId: thread.id, senderId: { not: userId }, isRead: false },
-      })
-    )
-  )
+  const threadIds = threads.map(t => t.id)
+  const unreadRows = await prisma.message.groupBy({
+    by: ['threadId'],
+    where: { threadId: { in: threadIds }, senderId: { not: userId }, isRead: false },
+    _count: { _all: true },
+  })
+  const unreadMap = new Map(unreadRows.map(r => [r.threadId, r._count._all]))
 
-  return threads.map((thread, i) => ({ ...thread, unreadCount: unreadCounts[i] }))
+  return threads.map(thread => ({ ...thread, unreadCount: unreadMap.get(thread.id) ?? 0 }))
 })
