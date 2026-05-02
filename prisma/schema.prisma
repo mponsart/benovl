@@ -1,6 +1,6 @@
 generator client {
   provider        = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
+  previewFeatures = ["driverAdapters", "omitApi"]
 }
 
 // Default datasource: SQLite for local dev and Turso/Vercel (LibSQL).
