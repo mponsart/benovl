@@ -1,7 +1,25 @@
 import { PrismaClient } from '@prisma/client'
+import { PrismaLibSQL } from '@prisma/adapter-libsql'
+import { createClient } from '@libsql/client'
 import bcrypt from 'bcryptjs'
 
-const prisma = new PrismaClient()
+function createPrismaClient(): PrismaClient {
+  if (process.env.TURSO_DATABASE_URL) {
+    const authToken = process.env.TURSO_AUTH_TOKEN
+    if (!authToken) {
+      throw new Error('TURSO_AUTH_TOKEN is required when TURSO_DATABASE_URL is set')
+    }
+    const libsql = createClient({
+      url: process.env.TURSO_DATABASE_URL,
+      authToken,
+    })
+    const adapter = new PrismaLibSQL(libsql)
+    return new PrismaClient({ adapter })
+  }
+  return new PrismaClient()
+}
+
+const prisma = createPrismaClient()
 
 async function main() {
   console.log('🌱 Seeding database...')
