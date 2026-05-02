@@ -77,10 +77,10 @@ const { data: entries, pending, refresh } = useFetch<TimeEntry[]>('/api/pointage
 const clocking = ref(false)
 
 const now = ref(new Date())
-let timer: ReturnType<typeof setInterval>
+let timer: NodeJS.Timeout | undefined
 
 onMounted(() => { timer = setInterval(() => { now.value = new Date() }, 1000) })
-onUnmounted(() => clearInterval(timer))
+onUnmounted(() => { if (timer) clearInterval(timer) })
 
 const currentTime = computed(() => now.value.toLocaleTimeString('fr-FR'))
 const currentDate = computed(() => now.value.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))

@@ -22,8 +22,13 @@ export default defineEventHandler(async (event) => {
     orderBy: { updatedAt: 'desc' },
   })
 
-  return threads.map(thread => {
-    const unreadCount = thread.messages.filter(m => !m.isRead && m.senderId !== userId).length
-    return { ...thread, unreadCount }
-  })
+  const unreadCounts = await Promise.all(
+    threads.map(thread =>
+      prisma.message.count({
+        where: { threadId: thread.id, senderId: { not: userId }, isRead: false },
+      })
+    )
+  )
+
+  return threads.map((thread, i) => ({ ...thread, unreadCount: unreadCounts[i] }))
 })

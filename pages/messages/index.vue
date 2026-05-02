@@ -105,7 +105,7 @@
             </select>
             <button type="button" @click="newForm.participantIds.splice(i, 1)" class="btn-danger text-sm px-2">✕</button>
           </div>
-          <button type="button" @click="newForm.participantIds.push(null as any)" class="text-sm text-indigo-600 hover:text-indigo-700">+ Ajouter</button>
+          <button type="button" @click="newForm.participantIds.push(null)" class="text-sm text-indigo-600 hover:text-indigo-700">+ Ajouter</button>
         </div>
       </div>
       <div>
@@ -147,7 +147,7 @@ const creatingThread = ref(false)
 const messagesContainer = ref<HTMLElement | null>(null)
 
 const newForm = reactive({
-  participantIds: [null as any],
+  participantIds: [null] as Array<number | null>,
   subject: '',
   message: '',
 })
