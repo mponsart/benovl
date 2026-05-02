@@ -3,7 +3,8 @@
 //         prisma migrate dev --schema=prisma/schema.mysql.prisma
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["omitApi"]
 }
 
 datasource db {
@@ -20,6 +21,13 @@ enum UserRole {
 enum UserStatus {
   actif
   suspendu
+}
+
+enum UserLifecycle {
+  actif
+  pause
+  suspendu
+  sorti
 }
 
 enum RegistrationStatus {
@@ -49,6 +57,78 @@ enum AuditAction {
   password_reset
 }
 
+enum SkillLevel {
+  debutant
+  intermediaire
+  avance
+  expert
+}
+
+enum InterviewType {
+  annuel
+  sixmois
+  depart
+  autre
+}
+
+enum TaskStatus {
+  todo
+  in_progress
+  review
+  done
+}
+
+enum TaskPriority {
+  low
+  medium
+  high
+  urgent
+}
+
+enum JobPostingStatus {
+  draft
+  published
+  closed
+}
+
+enum ApplicationStatus {
+  new
+  reviewing
+  interview
+  accepted
+  rejected
+}
+
+enum DocumentTemplateCategory {
+  convention
+  attestation
+  contrat
+  autre
+}
+
+enum SignatureStatus {
+  pending
+  signed
+  expired
+  revoked
+}
+
+enum TimeEntryStatus {
+  pending
+  validated
+  anomaly
+}
+
+enum TransactionType {
+  credit
+  debit
+}
+
+enum BlogPostStatus {
+  draft
+  published
+}
+
 model Pole {
   id            Int            @id @default(autoincrement())
   name          String         @unique
@@ -56,35 +136,68 @@ model Pole {
   users         User[]
   slots         PlanningSlot[]
   announcements Announcement[]
+  tasks         Task[]
+  jobPostings   JobPosting[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 }
 
 model User {
-  id            Int          @id @default(autoincrement())
-  email         String       @unique
-  password      String
-  nom           String
-  prenom        String
-  telephone     String?
-  role          UserRole     @default(benevole)
-  status        UserStatus   @default(actif)
-  notesInternes String?      @db.Text
-  poleId        Int?
-  pole          Pole?        @relation(fields: [poleId], references: [id])
-  inviteToken   String?      @unique
-  inviteExpiry  DateTime?
-  resetToken    String?      @unique
-  resetExpiry   DateTime?
-  lastLoginAt   DateTime?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  id             Int           @id @default(autoincrement())
+  email          String        @unique
+  password       String
+  nom            String
+  prenom         String
+  telephone      String?
+  role           UserRole      @default(benevole)
+  status         UserStatus    @default(actif)
+  lifecycle      UserLifecycle @default(actif)
+  notesInternes  String?       @db.Text
+  poleId         Int?
+  pole           Pole?         @relation(fields: [poleId], references: [id])
+  inviteToken    String?       @unique
+  inviteExpiry   DateTime?
+  resetToken     String?       @unique
+  resetExpiry    DateTime?
+  lastLoginAt    DateTime?
+  dateEntree     DateTime?
+  dateSortie     DateTime?
+  bio            String?       @db.Text
+  adresse        String?       @db.Text
+  dateNaissance  DateTime?
+  numeroUrgence  String?
+  contactUrgence String?
+  photoUrl       String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
-  registrations PlanningRegistration[]
-  documents     Document[]
-  auditLogs     AuditLog[]   @relation("AuditUser")
-  auditActions  AuditLog[]   @relation("AuditActor")
-  refreshTokens RefreshToken[]
+  registrations            PlanningRegistration[]
+  documents                Document[]
+  auditLogs                AuditLog[]              @relation("AuditUser")
+  auditActions             AuditLog[]              @relation("AuditActor")
+  refreshTokens            RefreshToken[]
+  skills                   Skill[]
+  interviews               UserInterview[]         @relation("InterviewSubject")
+  conductedInterviews      UserInterview[]         @relation("InterviewConductor")
+  lifecycleEvents          LifecycleEvent[]        @relation("LifecycleUser")
+  changedLifecycleEvents   LifecycleEvent[]        @relation("LifecycleChanger")
+  assignedTasks            Task[]                  @relation("TaskAssignee")
+  createdTasks             Task[]                  @relation("TaskCreator")
+  taskComments             TaskComment[]
+  taskAttachments          TaskAttachment[]
+  sentMessages             Message[]
+  messageParticipants      MessageParticipant[]
+  notifications            Notification[]
+  timeEntries              TimeEntry[]
+  pointTransactions        PointTransaction[]      @relation("PointUser")
+  validatedTransactions    PointTransaction[]      @relation("PointValidator")
+  blogPosts                BlogPost[]
+  blogComments             BlogComment[]
+  jobPostings              JobPosting[]
+  applicationAssignments   Application[]           @relation("ApplicationAssignee")
+  documentTemplates        DocumentTemplate[]
+  applicationHistories     ApplicationHistory[]    @relation("AppHistoryUser")
+  documentSignatures       DocumentSignature[]
 }
 
 model RefreshToken {
@@ -126,16 +239,17 @@ model PlanningRegistration {
 }
 
 model Document {
-  id        Int          @id @default(autoincrement())
-  name      String
-  filename  String
-  type      DocumentType @default(autre)
-  userId    Int?
-  user      User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
-  size      Int?
-  mimeType  String?
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  id         Int                 @id @default(autoincrement())
+  name       String
+  filename   String
+  type       DocumentType        @default(autre)
+  userId     Int?
+  user       User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  size       Int?
+  mimeType   String?
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  signatures DocumentSignature[]
 }
 
 model Announcement {
@@ -163,4 +277,304 @@ model AuditLog {
   details   String?     @db.Text
   ipAddress String?
   createdAt DateTime    @default(now())
+}
+
+// ─── Skills ────────────────────────────────────────────────────────────────
+
+model Skill {
+  id         Int        @id @default(autoincrement())
+  userId     Int
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  level      SkillLevel
+  category   String?
+  obtainedAt DateTime?
+}
+
+// ─── Interviews ────────────────────────────────────────────────────────────
+
+model UserInterview {
+  id            Int           @id @default(autoincrement())
+  userId        Int
+  user          User          @relation("InterviewSubject", fields: [userId], references: [id], onDelete: Cascade)
+  conductedById Int?
+  conductedBy   User?         @relation("InterviewConductor", fields: [conductedById], references: [id], onDelete: SetNull)
+  date          DateTime
+  type          InterviewType
+  notes         String?       @db.Text
+  rating        Int?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+// ─── Lifecycle Events ──────────────────────────────────────────────────────
+
+model LifecycleEvent {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation("LifecycleUser", fields: [userId], references: [id], onDelete: Cascade)
+  fromStatus  String
+  toStatus    String
+  reason      String?  @db.Text
+  changedById Int?
+  changedBy   User?    @relation("LifecycleChanger", fields: [changedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+}
+
+// ─── Tasks ─────────────────────────────────────────────────────────────────
+
+model Task {
+  id           Int              @id @default(autoincrement())
+  title        String
+  description  String?          @db.Text
+  status       TaskStatus       @default(todo)
+  priority     TaskPriority     @default(medium)
+  assignedToId Int?
+  assignedTo   User?            @relation("TaskAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdById  Int
+  createdBy    User             @relation("TaskCreator", fields: [createdById], references: [id])
+  dueDate      DateTime?
+  poleId       Int?
+  pole         Pole?            @relation(fields: [poleId], references: [id])
+  isCollective Boolean          @default(false)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  comments     TaskComment[]
+  attachments  TaskAttachment[]
+}
+
+model TaskComment {
+  id        Int      @id @default(autoincrement())
+  taskId    Int
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TaskAttachment {
+  id           Int      @id @default(autoincrement())
+  taskId       Int
+  task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id])
+  filename     String
+  originalName String
+  size         Int?
+  mimeType     String?
+  createdAt    DateTime @default(now())
+}
+
+// ─── Job Postings & Applications ──────────────────────────────────────────
+
+model JobPosting {
+  id           Int              @id @default(autoincrement())
+  title        String
+  description  String           @db.Text
+  status       JobPostingStatus @default(draft)
+  poleId       Int?
+  pole         Pole?            @relation(fields: [poleId], references: [id])
+  slots        Int              @default(1)
+  publishedAt  DateTime?
+  closedAt     DateTime?
+  createdById  Int
+  createdBy    User             @relation(fields: [createdById], references: [id])
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  applications Application[]
+}
+
+model Application {
+  id            Int                    @id @default(autoincrement())
+  jobPostingId  Int
+  jobPosting    JobPosting             @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  firstName     String
+  lastName      String
+  email         String
+  phone         String?
+  coverLetter   String?                @db.Text
+  status        ApplicationStatus      @default(new)
+  notes         String?                @db.Text
+  assignedToId  Int?
+  assignedTo    User?                  @relation("ApplicationAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  documents     ApplicationDocument[]
+  history       ApplicationHistory[]
+}
+
+model ApplicationDocument {
+  id            Int         @id @default(autoincrement())
+  applicationId Int
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  filename      String
+  originalName  String
+  size          Int?
+  mimeType      String?
+  createdAt     DateTime    @default(now())
+}
+
+model ApplicationHistory {
+  id            Int         @id @default(autoincrement())
+  applicationId Int
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  userId        Int?
+  user          User?       @relation("AppHistoryUser", fields: [userId], references: [id], onDelete: SetNull)
+  fromStatus    String?
+  toStatus      String?
+  note          String?     @db.Text
+  createdAt     DateTime    @default(now())
+}
+
+// ─── Document Templates & Signatures ──────────────────────────────────────
+
+model DocumentTemplate {
+  id          Int                      @id @default(autoincrement())
+  name        String
+  category    DocumentTemplateCategory
+  content     String                   @db.LongText
+  variables   String                   @db.Text
+  createdById Int
+  createdBy   User                     @relation(fields: [createdById], references: [id])
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+}
+
+model DocumentSignature {
+  id           Int             @id @default(autoincrement())
+  documentId   Int
+  document     Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  signerUserId Int?
+  signerUser   User?           @relation(fields: [signerUserId], references: [id], onDelete: SetNull)
+  signerEmail  String?
+  signerName   String
+  token        String          @unique @db.VarChar(512)
+  status       SignatureStatus @default(pending)
+  signedAt     DateTime?
+  ipAddress    String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
+
+// ─── Messaging ─────────────────────────────────────────────────────────────
+
+model MessageThread {
+  id           Int                  @id @default(autoincrement())
+  subject      String?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  participants MessageParticipant[]
+  messages     Message[]
+}
+
+model MessageParticipant {
+  id         Int           @id @default(autoincrement())
+  threadId   Int
+  thread     MessageThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  userId     Int
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastReadAt DateTime?
+  createdAt  DateTime      @default(now())
+
+  @@unique([threadId, userId])
+}
+
+model Message {
+  id        Int           @id @default(autoincrement())
+  threadId  Int
+  thread    MessageThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  senderId  Int
+  sender    User          @relation(fields: [senderId], references: [id])
+  content   String        @db.Text
+  isRead    Boolean       @default(false)
+  createdAt DateTime      @default(now())
+}
+
+// ─── Notifications ─────────────────────────────────────────────────────────
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String   @db.Text
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// ─── Time Tracking ─────────────────────────────────────────────────────────
+
+model TimeEntry {
+  id           Int             @id @default(autoincrement())
+  userId       Int
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clockIn      DateTime
+  clockOut     DateTime?
+  breakMinutes Int             @default(0)
+  note         String?         @db.Text
+  status       TimeEntryStatus @default(pending)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
+
+// ─── Points / Gamification ────────────────────────────────────────────────
+
+model PointTransaction {
+  id            Int             @id @default(autoincrement())
+  userId        Int
+  user          User            @relation("PointUser", fields: [userId], references: [id], onDelete: Cascade)
+  amount        Int
+  type          TransactionType
+  reason        String
+  month         String          @db.VarChar(7)
+  validatedById Int?
+  validatedBy   User?           @relation("PointValidator", fields: [validatedById], references: [id], onDelete: SetNull)
+  validatedAt   DateTime?
+  createdAt     DateTime        @default(now())
+}
+
+// ─── Blog ──────────────────────────────────────────────────────────────────
+
+model BlogPost {
+  id          Int            @id @default(autoincrement())
+  title       String
+  slug        String         @unique
+  content     String         @db.LongText
+  excerpt     String?        @db.Text
+  publishedAt DateTime?
+  status      BlogPostStatus @default(draft)
+  authorId    Int
+  author      User           @relation(fields: [authorId], references: [id])
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  comments    BlogComment[]
+}
+
+model BlogComment {
+  id         Int      @id @default(autoincrement())
+  postId     Int
+  post       BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId     Int?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  authorName String?
+  content    String   @db.Text
+  isApproved Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+// ─── Help Center ───────────────────────────────────────────────────────────
+
+model HelpArticle {
+  id          Int      @id @default(autoincrement())
+  title       String
+  slug        String   @unique
+  content     String   @db.LongText
+  category    String?
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
