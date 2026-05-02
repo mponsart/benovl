@@ -1,5 +1,5 @@
 {
-  "buildCommand": "prisma generate && nuxt build",
+  "buildCommand": "DATABASE_URL=${DATABASE_URL:-file:./dev.db} prisma generate && nuxt build",
   "installCommand": "npm install",
   "framework": "nuxtjs"
 }
