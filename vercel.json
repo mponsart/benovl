@@ -1,5 +1,5 @@
 {
-  "buildCommand": "prisma generate && prisma db push && prisma db seed && nuxt build",
+  "buildCommand": "prisma generate && nuxt build",
   "installCommand": "npm install",
   "framework": "nuxtjs"
 }
