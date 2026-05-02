@@ -5,9 +5,13 @@ import bcrypt from 'bcryptjs'
 
 function createPrismaClient(): PrismaClient {
   if (process.env.TURSO_DATABASE_URL) {
+    const authToken = process.env.TURSO_AUTH_TOKEN
+    if (!authToken) {
+      throw new Error('TURSO_AUTH_TOKEN is required when TURSO_DATABASE_URL is set')
+    }
     const libsql = createClient({
       url: process.env.TURSO_DATABASE_URL,
-      authToken: process.env.TURSO_AUTH_TOKEN,
+      authToken,
     })
     const adapter = new PrismaLibSQL(libsql)
     return new PrismaClient({ adapter })
