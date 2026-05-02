@@ -1,6 +1,6 @@
 # BénoVL Intranet
 
-Intranet associatif pour la gestion des bénévoles — planning, annonces, documents et suivi RH.
+Intranet associatif pour la gestion des bénévoles — planning, annonces, messagerie, pointage, tâches, recrutement et suivi RH.
 
 Construit avec **Nuxt 3**, **Prisma ORM**, **Tailwind CSS** et **JWT**.  
 Compatible **SQLite / Turso** (LibSQL) et **MySQL** (production).
@@ -30,12 +30,18 @@ Compatible **SQLite / Turso** (LibSQL) et **MySQL** (production).
 
 | Module | Description |
 |--------|-------------|
-| 🔐 **Authentification** | Login/logout, JWT access + refresh token, rate-limiting |
+| 🔐 **Authentification** | Login/logout, JWT access + refresh token, rate-limiting, réinitialisation de mot de passe |
 | 👥 **RH Bénévoles** | Création, invitation par email, gestion des rôles et statuts |
 | 🏷️ **Pôles** | Organisation des bénévoles par pôle |
 | 📅 **Planning** | Créneaux avec inscriptions, capacités et auto-inscription |
 | 📢 **Annonces** | Globales ou par pôle, épinglage |
 | 📄 **Documents** | Upload et gestion d'attestations / conventions |
+| 💬 **Messages** | Messagerie interne avec fil de conversation par sujet |
+| ⏱️ **Pointage** | Pointage entrée/sortie et historique des présences |
+| ⭐ **Points** | Système de points et récompenses pour les bénévoles |
+| 📋 **Tâches** | Gestion de tâches en mode kanban avec priorités et assignation |
+| 💼 **Recrutement** | Offres de bénévolat et gestion des candidatures |
+| ⚙️ **Administration** | Paramètres généraux de l'application |
 | 🔍 **Audit** | Journal de toutes les actions sensibles |
 | 📊 **Dashboard** | Statistiques en temps réel |
 
@@ -186,11 +192,19 @@ benovl/
 ├── middleware/          # Guards de navigation (auth, rôles)
 ├── pages/               # Pages de l'application
 │   ├── login.vue
+│   ├── invite.vue       # Acceptation d'invitation
+│   ├── reset-password.vue
 │   ├── dashboard.vue
 │   ├── planning/
 │   ├── rh/
 │   ├── communication/
 │   ├── documents/
+│   ├── messages/
+│   ├── pointage/
+│   ├── points/
+│   ├── taches/
+│   ├── recrutement/
+│   ├── admin/
 │   └── audit/
 ├── prisma/
 │   ├── schema.prisma        # Schéma SQLite / Turso (défaut)
@@ -204,6 +218,11 @@ benovl/
 │   │   ├── planning/
 │   │   ├── announcements/
 │   │   ├── documents/
+│   │   ├── messages/
+│   │   ├── pointage/
+│   │   ├── points/
+│   │   ├── tasks/
+│   │   ├── recrutement/
 │   │   ├── dashboard/
 │   │   └── audit/
 │   ├── db/client.ts     # Singleton Prisma Client (auto-Turso si TURSO_DATABASE_URL)
@@ -238,11 +257,40 @@ benovl/
 | POST | `/api/poles` | admin | Créer un pôle |
 | GET | `/api/planning/slots` | auth | Liste des créneaux |
 | POST | `/api/planning/slots` | admin/responsable | Créer un créneau |
-| POST | `/api/planning/slots/[id]/register` | auth | S'inscrire |
+| GET | `/api/planning/slots/[id]` | auth | Détail d'un créneau |
+| PUT | `/api/planning/slots/[id]` | admin/responsable | Modifier un créneau |
+| DELETE | `/api/planning/slots/[id]` | admin/responsable | Supprimer un créneau |
+| GET | `/api/planning/registrations` | auth | Liste des inscriptions |
+| POST | `/api/planning/registrations` | auth | S'inscrire à un créneau |
+| PUT | `/api/planning/registrations/[id]` | auth | Modifier une inscription |
+| DELETE | `/api/planning/registrations/[id]` | auth | Se désinscrire |
 | GET | `/api/announcements` | auth | Liste des annonces |
 | POST | `/api/announcements` | admin/responsable | Créer une annonce |
 | GET | `/api/documents` | auth | Liste des documents |
 | POST | `/api/documents/upload` | auth | Uploader un document |
+| GET | `/api/messages` | auth | Liste des fils de discussion |
+| POST | `/api/messages` | auth | Créer un fil de discussion |
+| GET | `/api/messages/[threadId]` | auth | Messages d'un fil |
+| POST | `/api/messages/[threadId]` | auth | Répondre dans un fil |
+| GET | `/api/pointage` | auth | Historique de pointage |
+| POST | `/api/pointage/clock-in` | auth | Pointer l'entrée |
+| POST | `/api/pointage/clock-out` | auth | Pointer la sortie |
+| PATCH | `/api/pointage/[id]` | admin/responsable | Modifier une entrée |
+| GET | `/api/points` | auth | Solde et historique des points |
+| POST | `/api/points` | admin | Attribuer des points |
+| POST | `/api/points/validate` | admin | Valider une transaction |
+| GET | `/api/tasks` | auth | Liste des tâches |
+| POST | `/api/tasks` | admin/responsable | Créer une tâche |
+| GET | `/api/tasks/[id]` | auth | Détail d'une tâche |
+| PATCH | `/api/tasks/[id]` | auth | Modifier une tâche |
+| DELETE | `/api/tasks/[id]` | admin/responsable | Supprimer une tâche |
+| GET | `/api/recrutement` | auth | Liste des offres |
+| POST | `/api/recrutement` | admin/responsable | Créer une offre |
+| GET | `/api/recrutement/[id]` | auth | Détail d'une offre |
+| PATCH | `/api/recrutement/[id]` | admin/responsable | Modifier une offre |
+| DELETE | `/api/recrutement/[id]` | admin/responsable | Supprimer une offre |
+| POST | `/api/recrutement/applications` | auth | Postuler à une offre |
+| PATCH | `/api/recrutement/applications/[id]` | admin/responsable | Traiter une candidature |
 | GET | `/api/dashboard` | auth | Statistiques |
 | GET | `/api/audit` | admin | Journal d'audit |
 
