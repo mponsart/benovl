@@ -21,37 +21,71 @@ model Pole {
   users         User[]
   slots         PlanningSlot[]
   announcements Announcement[]
+  tasks         Task[]
+  jobPostings   JobPosting[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 }
 
 model User {
-  id            Int      @id @default(autoincrement())
-  email         String   @unique
+  id            Int       @id @default(autoincrement())
+  email         String    @unique
   password      String
   nom           String
   prenom        String
   telephone     String?
   /// admin | responsable | benevole
-  role          String   @default("benevole")
+  role          String    @default("benevole")
   /// actif | suspendu
-  status        String   @default("actif")
+  status        String    @default("actif")
+  /// actif | pause | suspendu | sorti
+  lifecycle     String    @default("actif")
   notesInternes String?
   poleId        Int?
-  pole          Pole?    @relation(fields: [poleId], references: [id])
-  inviteToken   String?  @unique
+  pole          Pole?     @relation(fields: [poleId], references: [id])
+  inviteToken   String?   @unique
   inviteExpiry  DateTime?
-  resetToken    String?  @unique
+  resetToken    String?   @unique
   resetExpiry   DateTime?
   lastLoginAt   DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  dateEntree    DateTime?
+  dateSortie    DateTime?
+  bio           String?
+  adresse       String?
+  dateNaissance DateTime?
+  numeroUrgence String?
+  contactUrgence String?
+  photoUrl      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  registrations PlanningRegistration[]
-  documents     Document[]
-  auditLogs     AuditLog[]   @relation("AuditUser")
-  auditActions  AuditLog[]   @relation("AuditActor")
-  refreshTokens RefreshToken[]
+  registrations            PlanningRegistration[]
+  documents                Document[]
+  auditLogs                AuditLog[]              @relation("AuditUser")
+  auditActions             AuditLog[]              @relation("AuditActor")
+  refreshTokens            RefreshToken[]
+  skills                   Skill[]
+  interviews               UserInterview[]         @relation("InterviewSubject")
+  conductedInterviews      UserInterview[]         @relation("InterviewConductor")
+  lifecycleEvents          LifecycleEvent[]        @relation("LifecycleUser")
+  changedLifecycleEvents   LifecycleEvent[]        @relation("LifecycleChanger")
+  assignedTasks            Task[]                  @relation("TaskAssignee")
+  createdTasks             Task[]                  @relation("TaskCreator")
+  taskComments             TaskComment[]
+  taskAttachments          TaskAttachment[]
+  sentMessages             Message[]
+  notifications            Notification[]
+  timeEntries              TimeEntry[]
+  pointTransactions        PointTransaction[]      @relation("PointUser")
+  validatedTransactions    PointTransaction[]      @relation("PointValidator")
+  blogPosts                BlogPost[]
+  blogComments             BlogComment[]
+  jobPostings              JobPosting[]
+  applicationAssignments   Application[]           @relation("ApplicationAssignee")
+  documentTemplates        DocumentTemplate[]
+  applicationHistories     ApplicationHistory[]    @relation("AppHistoryUser")
+  messageParticipants      MessageParticipant[]
+  documentSignatures       DocumentSignature[]
 }
 
 model RefreshToken {
@@ -94,17 +128,18 @@ model PlanningRegistration {
 }
 
 model Document {
-  id        Int      @id @default(autoincrement())
-  name      String
-  filename  String
+  id         Int                 @id @default(autoincrement())
+  name       String
+  filename   String
   /// attestation | convention | autre
-  type      String   @default("autre")
-  userId    Int?
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  size      Int?
-  mimeType  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  type       String              @default("autre")
+  userId     Int?
+  user       User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  size       Int?
+  mimeType   String?
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  signatures DocumentSignature[]
 }
 
 model Announcement {
@@ -134,5 +169,319 @@ model AuditLog {
   details   String?
   ipAddress String?
   createdAt DateTime @default(now())
+}
+
+// ─── Skills ────────────────────────────────────────────────────────────────
+
+model Skill {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  /// debutant | intermediaire | avance | expert
+  level      String
+  category   String?
+  obtainedAt DateTime?
+}
+
+// ─── Interviews ────────────────────────────────────────────────────────────
+
+model UserInterview {
+  id            Int       @id @default(autoincrement())
+  userId        Int
+  user          User      @relation("InterviewSubject", fields: [userId], references: [id], onDelete: Cascade)
+  conductedById Int?
+  conductedBy   User?     @relation("InterviewConductor", fields: [conductedById], references: [id], onDelete: SetNull)
+  date          DateTime
+  /// annuel | 6mois | depart | autre
+  type          String
+  notes         String?
+  rating        Int?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// ─── Lifecycle Events ──────────────────────────────────────────────────────
+
+model LifecycleEvent {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  user         User     @relation("LifecycleUser", fields: [userId], references: [id], onDelete: Cascade)
+  fromStatus   String
+  toStatus     String
+  reason       String?
+  changedById  Int?
+  changedBy    User?    @relation("LifecycleChanger", fields: [changedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+}
+
+// ─── Tasks ─────────────────────────────────────────────────────────────────
+
+model Task {
+  id           Int              @id @default(autoincrement())
+  title        String
+  description  String?
+  /// todo | in_progress | review | done
+  status       String           @default("todo")
+  /// low | medium | high | urgent
+  priority     String           @default("medium")
+  assignedToId Int?
+  assignedTo   User?            @relation("TaskAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdById  Int
+  createdBy    User             @relation("TaskCreator", fields: [createdById], references: [id])
+  dueDate      DateTime?
+  poleId       Int?
+  pole         Pole?            @relation(fields: [poleId], references: [id])
+  isCollective Boolean          @default(false)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  comments     TaskComment[]
+  attachments  TaskAttachment[]
+}
+
+model TaskComment {
+  id        Int      @id @default(autoincrement())
+  taskId    Int
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TaskAttachment {
+  id           Int      @id @default(autoincrement())
+  taskId       Int
+  task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id])
+  filename     String
+  originalName String
+  size         Int?
+  mimeType     String?
+  createdAt    DateTime @default(now())
+}
+
+// ─── Job Postings & Applications ──────────────────────────────────────────
+
+model JobPosting {
+  id           Int           @id @default(autoincrement())
+  title        String
+  description  String
+  /// draft | published | closed
+  status       String        @default("draft")
+  poleId       Int?
+  pole         Pole?         @relation(fields: [poleId], references: [id])
+  slots        Int           @default(1)
+  publishedAt  DateTime?
+  closedAt     DateTime?
+  createdById  Int
+  createdBy    User          @relation(fields: [createdById], references: [id])
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  applications Application[]
+}
+
+model Application {
+  id            Int                    @id @default(autoincrement())
+  jobPostingId  Int
+  jobPosting    JobPosting             @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  firstName     String
+  lastName      String
+  email         String
+  phone         String?
+  coverLetter   String?
+  /// new | reviewing | interview | accepted | rejected
+  status        String                 @default("new")
+  notes         String?
+  assignedToId  Int?
+  assignedTo    User?                  @relation("ApplicationAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  documents     ApplicationDocument[]
+  history       ApplicationHistory[]
+}
+
+model ApplicationDocument {
+  id            Int         @id @default(autoincrement())
+  applicationId Int
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  filename      String
+  originalName  String
+  size          Int?
+  mimeType      String?
+  createdAt     DateTime    @default(now())
+}
+
+model ApplicationHistory {
+  id            Int         @id @default(autoincrement())
+  applicationId Int
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  userId        Int?
+  user          User?       @relation("AppHistoryUser", fields: [userId], references: [id], onDelete: SetNull)
+  fromStatus    String?
+  toStatus      String?
+  note          String?
+  createdAt     DateTime    @default(now())
+}
+
+// ─── Document Templates & Signatures ──────────────────────────────────────
+
+model DocumentTemplate {
+  id          Int      @id @default(autoincrement())
+  name        String
+  /// convention | attestation | contrat | autre
+  category    String
+  /// HTML template content
+  content     String
+  /// JSON array of variable names
+  variables   String
+  createdById Int
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model DocumentSignature {
+  id            Int       @id @default(autoincrement())
+  documentId    Int
+  document      Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  signerUserId  Int?
+  signerUser    User?     @relation(fields: [signerUserId], references: [id], onDelete: SetNull)
+  signerEmail   String?
+  signerName    String
+  token         String    @unique
+  /// pending | signed | expired | revoked
+  status        String    @default("pending")
+  signedAt      DateTime?
+  ipAddress     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// ─── Messaging ─────────────────────────────────────────────────────────────
+
+model MessageThread {
+  id           Int                  @id @default(autoincrement())
+  subject      String?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  participants MessageParticipant[]
+  messages     Message[]
+}
+
+model MessageParticipant {
+  id         Int           @id @default(autoincrement())
+  threadId   Int
+  thread     MessageThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  userId     Int
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastReadAt DateTime?
+  createdAt  DateTime      @default(now())
+
+  @@unique([threadId, userId])
+}
+
+model Message {
+  id        Int           @id @default(autoincrement())
+  threadId  Int
+  thread    MessageThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  senderId  Int
+  sender    User          @relation(fields: [senderId], references: [id])
+  content   String
+  isRead    Boolean       @default(false)
+  createdAt DateTime      @default(now())
+}
+
+// ─── Notifications ─────────────────────────────────────────────────────────
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// ─── Time Tracking ─────────────────────────────────────────────────────────
+
+model TimeEntry {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clockIn      DateTime
+  clockOut     DateTime?
+  breakMinutes Int      @default(0)
+  note         String?
+  /// pending | validated | anomaly
+  status       String   @default("pending")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ─── Points / Gamification ────────────────────────────────────────────────
+
+model PointTransaction {
+  id            Int       @id @default(autoincrement())
+  userId        Int
+  user          User      @relation("PointUser", fields: [userId], references: [id], onDelete: Cascade)
+  amount        Int
+  /// credit | debit
+  type          String
+  reason        String
+  /// YYYY-MM
+  month         String
+  validatedById Int?
+  validatedBy   User?     @relation("PointValidator", fields: [validatedById], references: [id], onDelete: SetNull)
+  validatedAt   DateTime?
+  createdAt     DateTime  @default(now())
+}
+
+// ─── Blog ──────────────────────────────────────────────────────────────────
+
+model BlogPost {
+  id          Int           @id @default(autoincrement())
+  title       String
+  slug        String        @unique
+  content     String
+  excerpt     String?
+  publishedAt DateTime?
+  /// draft | published
+  status      String        @default("draft")
+  authorId    Int
+  author      User          @relation(fields: [authorId], references: [id])
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  comments    BlogComment[]
+}
+
+model BlogComment {
+  id          Int       @id @default(autoincrement())
+  postId      Int
+  post        BlogPost  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId      Int?
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  authorName  String?
+  content     String
+  isApproved  Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+}
+
+// ─── Help Center ───────────────────────────────────────────────────────────
+
+model HelpArticle {
+  id          Int      @id @default(autoincrement())
+  title       String
+  slug        String   @unique
+  content     String
+  category    String?
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
