@@ -155,6 +155,8 @@ const deleteTask = async (task: Task) => {
   }
 }
 
+const resetForm = () => Object.assign(form, { title: '', description: '', priority: 'medium', dueDate: '', assignedToId: null, isCollective: false })
+
 const createTask = async () => {
   if (!form.title.trim()) return
   saving.value = true
@@ -169,7 +171,7 @@ const createTask = async () => {
     })
     toast.success('Tâche créée')
     showCreateModal.value = false
-    Object.assign(form, { title: '', description: '', priority: 'medium', dueDate: '', assignedToId: null, isCollective: false })
+    resetForm()
     refresh()
   } catch (e: any) {
     toast.error(e?.data?.message ?? 'Erreur')

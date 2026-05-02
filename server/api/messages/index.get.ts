@@ -23,6 +23,8 @@ export default defineEventHandler(async (event) => {
   })
 
   const threadIds = threads.map(t => t.id)
+  if (threadIds.length === 0) return []
+
   const unreadRows = await prisma.message.groupBy({
     by: ['threadId'],
     where: { threadId: { in: threadIds }, senderId: { not: userId }, isRead: false },

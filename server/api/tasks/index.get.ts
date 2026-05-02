@@ -10,16 +10,15 @@ export default defineEventHandler(async (event) => {
   const poleId = query.poleId ? Number(query.poleId) : undefined
   const isCollective = query.isCollective !== undefined ? query.isCollective === 'true' : undefined
 
+  const where: Record<string, unknown> = {}
+  if (status) where.status = status
+  if (priority) where.priority = priority
+  if (assignedToId) where.assignedToId = assignedToId
+  if (poleId) where.poleId = poleId
+  if (isCollective !== undefined) where.isCollective = isCollective
+
   const tasks = await prisma.task.findMany({
-    where: {
-      AND: [
-        status ? { status } : {},
-        priority ? { priority } : {},
-        assignedToId ? { assignedToId } : {},
-        poleId ? { poleId } : {},
-        isCollective !== undefined ? { isCollective } : {},
-      ],
-    },
+    where,
     include: {
       createdBy: { omit: { password: true, inviteToken: true, inviteExpiry: true, resetToken: true, resetExpiry: true } },
       assignedTo: { omit: { password: true, inviteToken: true, inviteExpiry: true, resetToken: true, resetExpiry: true } },
