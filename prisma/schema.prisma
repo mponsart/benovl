@@ -193,7 +193,7 @@ model UserInterview {
   conductedById Int?
   conductedBy   User?     @relation("InterviewConductor", fields: [conductedById], references: [id], onDelete: SetNull)
   date          DateTime
-  /// annuel | 6mois | depart | autre
+  /// annuel | sixmois | depart | autre
   type          String
   notes         String?
   rating        Int?
